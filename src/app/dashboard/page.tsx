@@ -72,7 +72,7 @@ export default async function DashboardPage() {
                         {DAYS[new Date(app.start_at).getDay()]}
                       </p>
                       <p className="text-xs text-zinc-500">
-                        {new Date(app.start_at).getUTCHours()}:00 - {new Date(app.end_at).getUTCHours()}:00
+                        {new Date(app.start_at).getHours()}:00 - {new Date(app.end_at).getHours()}:00
                       </p>
                     </div>
                   </div>
@@ -119,7 +119,7 @@ export default async function DashboardPage() {
                       {DAYS[new Date(app.start_at).getDay()]}
                     </p>
                     <p className="text-[10px] text-zinc-500 uppercase">
-                      {new Date(app.start_at).getUTCHours()}:00
+                      {new Date(app.start_at).getHours()}:00
                     </p>
                   </div>
                 </div>

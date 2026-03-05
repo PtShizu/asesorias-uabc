@@ -159,9 +159,9 @@ export async function createAppointment(data: {
     const advisorEmail = appointment.profiles?.email
     // @ts-ignore
     const subjectName = appointment.subjects?.name
-    const dateStr = start.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-    const startTimeStr = start.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
-    const endTimeStr = end.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+    const dateStr = start.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Tijuana' })
+    const startTimeStr = start.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Tijuana' })
+    const endTimeStr = end.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Tijuana' })
 
     if (advisorEmail) {
       await sendAppointmentRequestEmail({
@@ -216,8 +216,8 @@ export async function updateAppointmentStatus(appointmentId: string, status: 'co
       advisorName,
       subjectName,
       status,
-      date: start.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-      startTime: start.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+      date: start.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Tijuana' }),
+      startTime: start.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Tijuana' })
     })
   }
 

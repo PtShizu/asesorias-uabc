@@ -126,17 +126,24 @@ export default function WeeklyCalendar({
 
     setStatus('loading')
 
-    const now = new Date()
-    const diff = (selectedDay - now.getDay() + 7) % 7
-    const targetDate = new Date(now)
-    targetDate.setDate(now.getDate() + diff)
-    targetDate.setSeconds(0, 0)
+    // 1. Obtener la fecha base (hoy a las 00:00:00)
+    const targetDate = new Date()
+    targetDate.setHours(0, 0, 0, 0)
 
+    // 2. Calcular cuántos días faltan para el día seleccionado
+    // selectedDay es 1 (Lunes) a 5 (Viernes)
+    const currentDay = targetDate.getDay() // 0 (Dom) a 6 (Sab)
+    let diff = selectedDay - currentDay
+    if (diff < 0) diff += 7 // Si ya pasó esta semana, apuntar a la próxima
+
+    targetDate.setDate(targetDate.getDate() + diff)
+
+    // 3. Crear fechas de inicio y fin exactas
     const startAt = new Date(targetDate)
-    startAt.setHours(Math.min(...selectedHours))
+    startAt.setHours(Math.min(...selectedHours), 0, 0, 0)
     
     const endAt = new Date(targetDate)
-    endAt.setHours(Math.max(...selectedHours) + 1)
+    endAt.setHours(Math.max(...selectedHours) + 1, 0, 0, 0)
 
     try {
       await createAppointment({
@@ -172,7 +179,11 @@ export default function WeeklyCalendar({
       <div className="grid grid-cols-6">
         {HOURS.map(hour => (
           <Fragment key={hour}>
-            <div className="p-4 text-center text-sm font-medium text-zinc-500 border-b border-zinc-200 dark:border-zinc-800">{hour}:00</div>
+            <div className="p-4 text-center text-[10px] font-bold text-zinc-400 border-b border-zinc-200 dark:border-zinc-800 flex flex-col justify-center leading-tight">
+              <span>{hour}:00</span>
+              <span className="opacity-50">—</span>
+              <span>{hour + 1}:00</span>
+            </div>
             {DAYS.map(day => {
               const available = isAvailable(day.value, hour)
               const selected = selectedDay === day.value && selectedHours.includes(hour)
