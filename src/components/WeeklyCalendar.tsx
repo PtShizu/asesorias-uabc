@@ -1,80 +1,213 @@
 'use client'
 
-import { useState, Fragment } from 'react'
+import { useState, Fragment, useMemo } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
-const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
+const DAYS = [
+  { label: 'Lunes', value: 1 },
+  { label: 'Martes', value: 2 },
+  { label: 'Miércoles', value: 3 },
+  { label: 'Jueves', value: 4 },
+  { label: 'Viernes', value: 5 },
+]
 const HOURS = Array.from({ length: 11 }, (_, i) => i + 8) // 8:00 AM to 6:00 PM
 
-interface Slot {
-  day: string
-  hour: number
+interface Availability {
+  day_of_week: number
+  start_time: string
+  end_time: string
 }
 
-export default function WeeklyCalendar({ advisorId }: { advisorId: string }) {
-  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
-  
-  // Mock occupied slots for demonstration
-  const occupiedSlots = [
-    { day: 'Lunes', hour: 9 },
-    { day: 'Miércoles', hour: 11 },
-    { day: 'Viernes', hour: 15 },
-  ]
+interface Appointment {
+  subject_id: string
+  start_at: string
+  end_at: string
+  status: 'pending' | 'confirmed' | 'cancelled'
+  subjects: { name: string }
+}
 
-  const isOccupied = (day: string, hour: number) => 
-    occupiedSlots.some(s => s.day === day && s.hour === hour)
+export default function WeeklyCalendar({ 
+  advisorId, 
+  initialAvailability,
+  initialAppointments,
+  subjects 
+}: { 
+  advisorId: string, 
+  initialAvailability: Availability[],
+  initialAppointments: Appointment[],
+  subjects: { id: string, name: string }[]
+}) {
+  const [selectedHours, setSelectedHours] = useState<number[]>([])
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
+  const [guestEmail, setGuestEmail] = useState('')
+  const [selectedSubject, setSelectedSubject] = useState(subjects[0]?.id || '')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
 
-  const handleSlotClick = (day: string, hour: number) => {
-    if (isOccupied(day, hour)) return
-    setSelectedSlot({ day, hour })
+  const supabase = createClient()
+
+  const occupiedSlots = useMemo(() => {
+    const map = new Map<string, { subjectId: string, name: string, status: string }>()
+    initialAppointments.filter(a => a.status !== 'cancelled').forEach(app => {
+      const start = new Date(app.start_at)
+      const end = new Date(app.end_at)
+      const day = start.getDay()
+      
+      for (let h = start.getHours(); h < end.getHours(); h++) {
+        map.set(`${day}-${h}`, { 
+          subjectId: app.subject_id, 
+          name: app.subjects.name,
+          status: app.status 
+        })
+      }
+    })
+    return map
+  }, [initialAppointments])
+
+  const isAvailable = (dayValue: number, hour: number) => {
+    return initialAvailability.some(a => {
+      if (a.day_of_week !== dayValue) return false
+      const startHour = parseInt(a.start_time.split(':')[0])
+      const endHour = parseInt(a.end_time.split(':')[0])
+      return hour >= startHour && hour < endHour
+    })
+  }
+
+  const handleSlotClick = (dayValue: number, hour: number) => {
+    if (!isAvailable(dayValue, hour)) return
+
+    if (selectedDay !== dayValue) {
+      setSelectedDay(dayValue)
+      setSelectedHours([hour])
+      const occupied = occupiedSlots.get(`${dayValue}-${hour}`)
+      if (occupied) setSelectedSubject(occupied.subjectId)
+      return
+    }
+
+    if (selectedHours.includes(hour)) {
+      const newHours = selectedHours.filter(h => h !== hour)
+      setSelectedHours(newHours)
+      if (newHours.length === 0) setSelectedDay(null)
+    } else {
+      const newHours = [...selectedHours, hour].sort((a, b) => a - b)
+      const isConsecutive = newHours.every((h, i) => i === 0 || h === newHours[i - 1] + 1)
+      
+      if (!isConsecutive) {
+        setSelectedHours([hour])
+      } else {
+        const allOccupiedSubjects = newHours
+          .map(h => occupiedSlots.get(`${dayValue}-${h}`))
+          .filter(Boolean)
+        
+        const uniqueSubjects = [...new Set(allOccupiedSubjects.map(s => s!.subjectId))]
+        if (uniqueSubjects.length > 1) {
+          alert("Bloque con materias diferentes. Elige horas con la misma materia.")
+          return
+        }
+        
+        if (uniqueSubjects.length === 1) setSelectedSubject(uniqueSubjects[0])
+        setSelectedHours(newHours)
+      }
+    }
+  }
+
+  const lockedSubject = useMemo(() => {
+    if (!selectedDay) return null
+    for (const h of selectedHours) {
+      const occ = occupiedSlots.get(`${selectedDay}-${h}`)
+      if (occ) return occ
+    }
+    return null
+  }, [selectedDay, selectedHours, occupiedSlots])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedDay || selectedHours.length === 0 || !guestEmail || !selectedSubject) return
+
+    setStatus('loading')
+
+    const now = new Date()
+    const diff = (selectedDay - now.getDay() + 7) % 7
+    const targetDate = new Date(now)
+    targetDate.setDate(now.getDate() + diff)
+    targetDate.setSeconds(0, 0)
+
+    const startAt = new Date(targetDate)
+    startAt.setHours(Math.min(...selectedHours))
+    
+    const endAt = new Date(targetDate)
+    endAt.setHours(Math.max(...selectedHours) + 1)
+
+    const { error } = await supabase
+      .from('appointments')
+      .insert({
+        advisor_id: advisorId,
+        subject_id: selectedSubject,
+        guest_email: guestEmail,
+        start_at: startAt.toISOString(),
+        end_at: endAt.toISOString(),
+        status: 'pending'
+      })
+
+    if (error) {
+      console.error(error)
+      setStatus('error')
+    } else {
+      setStatus('success')
+      setSelectedHours([])
+      setSelectedDay(null)
+      setGuestEmail('')
+      // Recargar para ver los cambios (opcionalmente podrías usar revalidatePath)
+      window.location.reload()
+    }
   }
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden">
-      {/* Header - Days */}
       <div className="grid grid-cols-6 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
-        <div className="p-4 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-          Hora
-        </div>
+        <div className="p-4 text-xs font-semibold uppercase tracking-wider text-zinc-500">Hora</div>
         {DAYS.map(day => (
-          <div key={day} className="p-4 text-center text-sm font-bold text-zinc-900 dark:text-white border-l border-zinc-200 dark:border-zinc-800">
-            {day}
+          <div key={day.value} className="p-4 text-center text-sm font-bold text-zinc-900 dark:text-white border-l border-zinc-200 dark:border-zinc-800">
+            {day.label}
           </div>
         ))}
       </div>
 
-      {/* Grid - Hours and Slots */}
       <div className="grid grid-cols-6">
         {HOURS.map(hour => (
           <Fragment key={hour}>
-            {/* Hour Label */}
-            <div key={`${hour}-label`} className="p-4 text-center text-sm font-medium text-zinc-500 border-b border-zinc-200 dark:border-zinc-800">
-              {hour}:00
-            </div>
-            
-            {/* Day Slots */}
+            <div className="p-4 text-center text-sm font-medium text-zinc-500 border-b border-zinc-200 dark:border-zinc-800">{hour}:00</div>
             {DAYS.map(day => {
-              const occupied = isOccupied(day, hour)
-              const selected = selectedSlot?.day === day && selectedSlot?.hour === hour
+              const available = isAvailable(day.value, hour)
+              const selected = selectedDay === day.value && selectedHours.includes(hour)
+              const occupied = occupiedSlots.get(`${day.value}-${hour}`)
               
               return (
                 <div
-                  key={`${day}-${hour}`}
-                  onClick={() => handleSlotClick(day, hour)}
+                  key={`${day.value}-${hour}`}
+                  onClick={() => handleSlotClick(day.value, hour)}
                   className={`
-                    h-16 border-l border-b border-zinc-200 dark:border-zinc-800 transition-all cursor-pointer
-                    ${occupied ? 'bg-zinc-100 dark:bg-zinc-800/30 cursor-not-allowed' : 'hover:bg-blue-50 dark:hover:bg-blue-900/20'}
-                    ${selected ? 'bg-blue-500 dark:bg-blue-600 ring-2 ring-inset ring-blue-600 dark:ring-blue-400' : ''}
+                    h-16 border-l border-b border-zinc-200 dark:border-zinc-800 transition-all relative flex flex-col items-center justify-center text-center p-1
+                    ${!available ? 'bg-zinc-100/30 dark:bg-zinc-800/5 cursor-not-allowed' : 'cursor-pointer'}
+                    ${available && !selected && !occupied ? 'hover:bg-blue-50 dark:hover:bg-blue-900/10' : ''}
+                    ${selected ? 'bg-blue-600 dark:bg-blue-500 z-10' : ''}
+                    ${occupied && !selected ? (occupied.status === 'confirmed' ? 'bg-zinc-100 dark:bg-zinc-800 border-l-4 border-l-blue-500' : 'bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-l-amber-400') : ''}
                   `}
                 >
-                  {occupied && (
-                    <div className="flex h-full items-center justify-center">
-                      <span className="text-[10px] font-bold uppercase text-zinc-400 dark:text-zinc-500">Ocupado</span>
-                    </div>
+                  {!selected && occupied && (
+                    <>
+                      <span className={`text-[9px] font-bold uppercase leading-tight ${occupied.status === 'confirmed' ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-500'}`}>
+                        {occupied.name}
+                      </span>
+                      <span className="text-[7px] uppercase font-bold text-zinc-400">
+                        {occupied.status === 'confirmed' ? 'Confirmado' : 'Pendiente'}
+                      </span>
+                    </>
                   )}
                   {selected && (
-                    <div className="flex h-full items-center justify-center">
-                      <span className="text-[10px] font-bold uppercase text-white">Seleccionado</span>
-                    </div>
+                    <span className="text-[9px] font-bold text-white uppercase">Seleccionado</span>
+                  )}
+                  {available && !selected && !occupied && (
+                     <span className="text-[9px] font-bold text-zinc-300 dark:text-zinc-600 uppercase">Libre</span>
                   )}
                 </div>
               )
@@ -83,25 +216,49 @@ export default function WeeklyCalendar({ advisorId }: { advisorId: string }) {
         ))}
       </div>
 
-      {/* Confirmation Section */}
-      {selectedSlot && (
-        <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 bg-blue-50/50 dark:bg-blue-900/10 flex items-center justify-between animate-in fade-in slide-in-from-bottom-2">
-          <div>
-            <p className="text-sm font-medium text-zinc-900 dark:text-white">
-              Has seleccionado: <span className="font-bold">{selectedSlot.day} a las {selectedSlot.hour}:00</span>
-            </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Ingresa tu correo para solicitar la asesoría.</p>
-          </div>
-          <div className="flex gap-3">
-            <input 
-              type="email" 
-              placeholder="tu@correo.com"
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800"
-            />
-            <button className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-colors">
-              Confirmar
-            </button>
-          </div>
+      {selectedDay && selectedHours.length > 0 && (
+        <div className="p-8 border-t border-zinc-200 dark:border-zinc-800 bg-blue-50/30 dark:bg-blue-900/10">
+          <form onSubmit={handleSubmit} className="flex flex-col md:flex-row md:items-end gap-6">
+            <div className="flex-1 space-y-4">
+              <h3 className="font-bold text-zinc-900 dark:text-white">Reservar Bloque</h3>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                {DAYS.find(d => d.value === selectedDay)?.label} de {Math.min(...selectedHours)}:00 a {Math.max(...selectedHours) + 1}:00
+              </p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Materia</label>
+                  <select 
+                    value={selectedSubject}
+                    onChange={(e) => setSelectedSubject(e.target.value)}
+                    disabled={!!lockedSubject}
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none dark:border-zinc-700 dark:bg-zinc-800 disabled:bg-zinc-100"
+                  >
+                    {subjects.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Tu Correo</label>
+                  <input 
+                    type="email" 
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    placeholder="estudiante@uabc.edu.mx"
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none dark:border-zinc-700 dark:bg-zinc-800"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => {setSelectedDay(null); setSelectedHours([])}} className="px-4 py-2 text-sm font-semibold text-zinc-500">Cancelar</button>
+              <button disabled={status === 'loading'} className="rounded-xl bg-blue-600 px-6 py-2 text-sm font-bold text-white hover:bg-blue-700">
+                {status === 'loading' ? 'Procesando...' : 'Confirmar Todo'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

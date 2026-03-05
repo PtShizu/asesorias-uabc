@@ -1,14 +1,45 @@
 import WeeklyCalendar from '@/components/WeeklyCalendar'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+import { notFound } from 'next/navigation'
 
 export default async function AdvisorPage({ params }: { params: { id: string } }) {
   const { id } = await params
+  const supabase = await createClient()
   
-  // Mock data for the advisor
-  const advisor = {
-    name: "Dra. Ana García",
-    subjects: ["Cálculo Diferencial", "Álgebra Lineal"],
-    bio: "Especialista en análisis matemático con 10 años de experiencia docente."
+  const { data: advisor, error } = await supabase
+    .from('profiles')
+    .select(`
+      full_name,
+      bio,
+      advisor_subjects (
+        subjects (
+          id,
+          name
+        )
+      ),
+      availability (
+        day_of_week,
+        start_time,
+        end_time
+      ),
+      appointments (
+        id,
+        subject_id,
+        start_at,
+        end_at,
+        status,
+        subjects (
+          name
+        )
+      )
+    `)
+    .eq('id', id)
+    // Eliminamos el filtro de status para traer pendientes también
+    .single()
+
+  if (error || !advisor) {
+    return notFound()
   }
 
   return (
@@ -24,32 +55,36 @@ export default async function AdvisorPage({ params }: { params: { id: string } }
       </Link>
 
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-        {/* Profile Sidebar */}
         <div className="w-full lg:w-1/3">
           <div className="rounded-2xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900 shadow-sm">
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">{advisor.name}</h1>
+            <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">{advisor.full_name}</h1>
             <div className="mt-4 flex flex-wrap gap-2">
-              {advisor.subjects.map(subject => (
-                <span key={subject} className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                  {subject}
+              {/* @ts-ignore */}
+              {advisor.advisor_subjects?.map(as => (
+                <span key={as.subjects.name} className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                  {as.subjects.name}
                 </span>
               ))}
             </div>
             <p className="mt-6 text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              {advisor.bio}
+              {advisor.bio || "Este asesor aún no ha agregado una biografía."}
             </p>
           </div>
         </div>
 
-        {/* Calendar Area */}
         <div className="w-full lg:w-2/3">
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Horario de Disponibilidad</h2>
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Horario de Asesorías</h2>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-              Selecciona un espacio vacío para solicitar tu asesoría.
+              Selecciona una o varias horas consecutivas. Si ya hay una materia programada, puedes unirte a ella.
             </p>
           </div>
-          <WeeklyCalendar advisorId={id} />
+          <WeeklyCalendar 
+            advisorId={id} 
+            initialAvailability={advisor.availability || []}
+            initialAppointments={advisor.appointments || []}
+            subjects={advisor.advisor_subjects?.map((as: any) => as.subjects) || []}
+          />
         </div>
       </div>
     </main>
