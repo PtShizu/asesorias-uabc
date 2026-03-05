@@ -84,14 +84,14 @@ export default async function Home({
               </h3>
               <div className="mt-4 flex flex-wrap gap-2">
                 {/* @ts-ignore */}
-                {advisor.advisor_subjects?.map((as, idx) => {
-                  const subjectName = Array.isArray(as.subjects) ? as.subjects[0]?.name : as.subjects?.name;
+                {advisor.advisor_subjects?.map((as: any, idx) => {
+                  const subject = Array.isArray(as.subjects) ? as.subjects[0] : as.subjects;
                   return (
                     <span
                       key={idx}
                       className="inline-flex items-center rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
                     >
-                      {subjectName}
+                      {subject?.name}
                     </span>
                   )
                 })}
