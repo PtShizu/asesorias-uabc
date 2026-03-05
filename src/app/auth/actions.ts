@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { sendAppointmentRequestEmail, sendStatusChangeEmail } from '@/lib/mail'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
@@ -126,20 +127,98 @@ export async function updateProfile(formData: FormData) {
   redirect('/profile?message=Perfil actualizado correctamente')
 }
 
+export async function createAppointment(data: {
+  advisorId: string,
+  subjectId: string,
+  guestEmail: string,
+  startAt: string,
+  endAt: string
+}) {
+  const supabase = await createClient()
+
+  const { data: appointment, error: insertError } = await supabase
+    .from('appointments')
+    .insert([{
+      advisor_id: data.advisorId,
+      subject_id: data.subjectId,
+      guest_email: data.guestEmail,
+      start_at: data.startAt,
+      end_at: data.endAt,
+      status: 'pending'
+    }])
+    .select('*, subjects(name), profiles:advisor_id(email, full_name)')
+    .single()
+
+  if (insertError) throw new Error(insertError.message)
+
+  if (appointment) {
+    const start = new Date(data.startAt)
+    const end = new Date(data.endAt)
+    
+    // @ts-ignore
+    const advisorEmail = appointment.profiles?.email
+    // @ts-ignore
+    const subjectName = appointment.subjects?.name
+    const dateStr = start.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    const startTimeStr = start.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+    const endTimeStr = end.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+
+    if (advisorEmail) {
+      await sendAppointmentRequestEmail({
+        advisorEmail,
+        guestEmail: data.guestEmail,
+        subjectName,
+        date: dateStr,
+        startTime: startTimeStr,
+        endTime: endTimeStr
+      })
+    }
+  }
+
+  revalidatePath(`/advisor/${data.advisorId}`)
+}
+
 export async function updateAppointmentStatus(appointmentId: string, status: 'confirmed' | 'cancelled') {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) return
 
+  // 1. Obtener detalles antes de actualizar para el correo
+  const { data: app } = await supabase
+    .from('appointments')
+    .select('*, subjects(name), profiles:advisor_id(full_name)')
+    .eq('id', appointmentId)
+    .single()
+
+  // 2. Actualizar
   const { error } = await supabase
     .from('appointments')
     .update({ status })
     .eq('id', appointmentId)
-    .eq('advisor_id', user.id) // Seguridad extra
+    .eq('advisor_id', user.id)
 
   if (error) {
     console.error('Error updating appointment:', error.message)
+    return
+  }
+
+  // 3. Enviar correo al alumno
+  if (app) {
+    const start = new Date(app.start_at)
+    // @ts-ignore
+    const advisorName = app.profiles?.full_name || 'Asesor'
+    // @ts-ignore
+    const subjectName = app.subjects?.name || 'Asesoría'
+    
+    await sendStatusChangeEmail({
+      guestEmail: app.guest_email,
+      advisorName,
+      subjectName,
+      status,
+      date: start.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+      startTime: start.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+    })
   }
 
   revalidatePath('/dashboard')

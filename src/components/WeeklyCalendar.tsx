@@ -2,6 +2,7 @@
 
 import { useState, Fragment, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { createAppointment } from '@/app/auth/actions'
 
 const DAYS = [
   { label: 'Lunes', value: 1 },
@@ -137,27 +138,23 @@ export default function WeeklyCalendar({
     const endAt = new Date(targetDate)
     endAt.setHours(Math.max(...selectedHours) + 1)
 
-    const { error } = await supabase
-      .from('appointments')
-      .insert({
-        advisor_id: advisorId,
-        subject_id: selectedSubject,
-        guest_email: guestEmail,
-        start_at: startAt.toISOString(),
-        end_at: endAt.toISOString(),
-        status: 'pending'
+    try {
+      await createAppointment({
+        advisorId,
+        subjectId: selectedSubject,
+        guestEmail,
+        startAt: startAt.toISOString(),
+        endAt: endAt.toISOString()
       })
-
-    if (error) {
-      console.error(error)
-      setStatus('error')
-    } else {
+      
       setStatus('success')
       setSelectedHours([])
       setSelectedDay(null)
       setGuestEmail('')
-      // Recargar para ver los cambios (opcionalmente podrías usar revalidatePath)
-      window.location.reload()
+      // No necesitamos reload porque revalidatePath se encarga
+    } catch (err) {
+      console.error(err)
+      setStatus('error')
     }
   }
 
