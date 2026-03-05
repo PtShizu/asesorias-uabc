@@ -1,6 +1,13 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 export async function sendAppointmentRequestEmail({
@@ -19,9 +26,9 @@ export async function sendAppointmentRequestEmail({
   endTime: string;
 }) {
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'Asesorías UABC <onboarding@resend.dev>', // Usa tu dominio si tienes uno
-      to: [advisorEmail],
+    await transporter.sendMail({
+      from: `"Asesorías UABC" <${process.env.EMAIL_USER}>`,
+      to: advisorEmail,
       subject: `Nueva solicitud de asesoría: ${subjectName}`,
       html: `
         <div style="font-family: sans-serif; padding: 20px; color: #333;">
@@ -35,14 +42,9 @@ export async function sendAppointmentRequestEmail({
         </div>
       `,
     });
-
-    if (error) {
-      return console.error({ error });
-    }
-
-    return data;
+    console.log('Correo de solicitud enviado al asesor');
   } catch (error) {
-    console.error('Error enviando correo:', error);
+    console.error('Error enviando correo con Nodemailer:', error);
   }
 }
 
@@ -66,9 +68,9 @@ export async function sendStatusChangeEmail({
   const color = isConfirmed ? '#10b981' : '#ef4444';
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'Asesorías UABC <onboarding@resend.dev>',
-      to: [guestEmail],
+    await transporter.sendMail({
+      from: `"Asesorías UABC" <${process.env.EMAIL_USER}>`,
+      to: guestEmail,
       subject: `Asesoría ${statusLabel}: ${subjectName}`,
       html: `
         <div style="font-family: sans-serif; padding: 20px; color: #333;">
@@ -83,13 +85,8 @@ export async function sendStatusChangeEmail({
         </div>
       `,
     });
-
-    if (error) {
-      return console.error({ error });
-    }
-
-    return data;
+    console.log(`Correo de ${statusLabel} enviado al alumno`);
   } catch (error) {
-    console.error('Error enviando correo:', error);
+    console.error('Error enviando correo con Nodemailer:', error);
   }
 }
