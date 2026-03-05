@@ -60,11 +60,15 @@ export default async function AdvisorPage({ params }: { params: { id: string } }
             <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">{advisor.full_name}</h1>
             <div className="mt-4 flex flex-wrap gap-2">
               {/* @ts-ignore */}
-              {advisor.advisor_subjects?.map(as => (
-                <span key={as.subjects.name} className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                  {as.subjects.name}
-                </span>
-              ))}
+              {advisor.advisor_subjects?.map((as, index) => {
+                const subject = Array.isArray(as.subjects) ? as.subjects[0] : as.subjects;
+                if (!subject) return null;
+                return (
+                  <span key={index} className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                    {subject.name}
+                  </span>
+                )
+              })}
             </div>
             <p className="mt-6 text-zinc-600 dark:text-zinc-400 leading-relaxed">
               {advisor.bio || "Este asesor aún no ha agregado una biografía."}
