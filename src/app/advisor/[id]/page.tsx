@@ -86,10 +86,16 @@ export default async function AdvisorPage({ params }: { params: { id: string } }
           <WeeklyCalendar 
             advisorId={id} 
             initialAvailability={advisor.availability || []}
-            initialAppointments={advisor.appointments || []}
-            subjects={advisor.advisor_subjects?.map((as: any) => as.subjects) || []}
+            initialAppointments={(advisor.appointments || []).map((app: any) => ({
+              ...app,
+              subjects: Array.isArray(app.subjects) ? app.subjects[0] : app.subjects
+            }))}
+            subjects={advisor.advisor_subjects?.map((as: any) => {
+              return Array.isArray(as.subjects) ? as.subjects[0] : as.subjects
+            }) || []}
           />
         </div>
+
       </div>
     </main>
   )
