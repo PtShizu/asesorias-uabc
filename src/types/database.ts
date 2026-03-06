@@ -4,11 +4,19 @@ export interface Profile {
   full_name: string;
   bio?: string;
   avatar_url?: string;
+  default_location?: string;
+  career_id?: string;
+}
+
+export interface Career {
+  id: string;
+  name: string;
 }
 
 export interface Subject {
   id: string;
   name: string;
+  career_ids?: string[];
 }
 
 export interface AdvisorSubject {
@@ -32,4 +40,5 @@ export interface Appointment {
   start_at: string; // ISO string
   end_at: string; // ISO string
   status: 'pending' | 'confirmed' | 'cancelled';
+  location_details?: string;
 }

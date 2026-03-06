@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { updateAppointmentStatus, deleteAppointment } from '@/app/auth/actions'
 import { formatTime, getDayName, getDateNumber } from '@/lib/date-utils'
+import DashboardToasts from '@/components/DashboardToasts'
+import { Suspense } from 'react'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -28,6 +30,13 @@ export default async function DashboardPage() {
   if (error) {
     console.error('Error fetching dashboard:', error)
   }
+
+  // Obtener perfil actual para la ubicación por defecto
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('default_location')
+    .eq('id', user.id)
+    .single()
 
   const pending = appointments?.filter(a => a.status === 'pending') || []
   const confirmedRaw = appointments?.filter(a => a.status === 'confirmed') || []
@@ -97,16 +106,36 @@ export default async function DashboardPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-3">
-                    <form action={async () => { 'use server'; await updateAppointmentStatus(app.id, 'confirmed') }} className="flex-1">
-                      <button className="w-full rounded-xl bg-zinc-900 py-2 text-sm font-bold text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 transition-colors">
-                        Confirmar
-                      </button>
-                    </form>
-                    <form action={async () => { 'use server'; await updateAppointmentStatus(app.id, 'cancelled') }}>
-                      <button className="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-colors">
-                        Rechazar
-                      </button>
+                  <div className="flex flex-col gap-3">
+                    <form action={updateAppointmentStatus} className="flex flex-col gap-3">
+                      <input type="hidden" name="appointmentId" value={app.id} />
+                      <input type="hidden" name="status" value="confirmed" />
+                      
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-zinc-400 mb-1 block">Lugar / Enlace para el alumno</label>
+                        <input 
+                          name="location"
+                          defaultValue={profile?.default_location || ''}
+                          placeholder="Ej. Cubículo 202 o Meet link"
+                          className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-800 outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button type="submit" className="flex-1 rounded-xl bg-zinc-900 py-2 text-sm font-bold text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 transition-colors">
+                          Confirmar
+                        </button>
+                        <button 
+                          formAction={async (formData) => {
+                            'use server';
+                            formData.set('status', 'cancelled');
+                            await updateAppointmentStatus(formData);
+                          }}
+                          className="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-colors"
+                        >
+                          Rechazar
+                        </button>
+                      </div>
                     </form>
                   </div>
                 </div>
@@ -173,6 +202,10 @@ export default async function DashboardPage() {
           </div>
         </section>
       </div>
+      
+      <Suspense fallback={null}>
+        <DashboardToasts />
+      </Suspense>
     </main>
   )
 }

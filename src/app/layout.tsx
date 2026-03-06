@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +15,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Asesorías UABC",
-  description: "Plataforma de asesorías académicas para la UABC",
+  title: "Cima Asesorías | Apoyo Académico entre Cimarrones UABC",
+  description: "La plataforma oficial para encontrar y solicitar asesorías académicas en la UABC. Cima Asesorías conecta a cimarrones para potenciar su éxito académico.",
+  keywords: ["Cima Asesorías", "UABC", "Cimarrones", "Asesorías Académicas", "Tijuana", "Cima Asesorias"],
+  verification: {
+    google: "mAp2-MgfaTvwQ0cEU6fq0qk6ylWDON8XTxvrMZ6BG7A",
+  },
 };
 
 export default function RootLayout({
@@ -26,11 +31,13 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-zinc-50 dark:bg-zinc-950`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 min-h-screen`}
       >
+        <Toaster position="top-center" richColors />
         <Navbar />
         {children}
       </body>
     </html>
   );
 }
+

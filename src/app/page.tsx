@@ -4,10 +4,16 @@ import { createClient } from '@/lib/supabase/server'
 export default async function Home({ 
   searchParams 
 }: { 
-  searchParams: { q?: string } 
+  searchParams: { q?: string; career?: string } 
 }) {
   const supabase = await createClient()
-  const query = (await searchParams).q
+  const { q: query, career: selectedCareer } = await searchParams
+
+  // Obtener carreras para el filtro
+  const { data: careers } = await supabase
+    .from('careers')
+    .select('id, name')
+    .order('name')
 
   // Construir la consulta a Supabase
   let supabaseQuery = supabase
@@ -16,6 +22,11 @@ export default async function Home({
       id,
       full_name,
       bio,
+      career_id,
+      avatar_url,
+      careers (
+        name
+      ),
       advisor_subjects!inner (
         subjects (
           name
@@ -23,9 +34,14 @@ export default async function Home({
       )
     `)
 
-  // Si hay una búsqueda, filtramos por el nombre de la materia
+  // Filtro por materia (texto)
   if (query) {
     supabaseQuery = supabaseQuery.ilike('advisor_subjects.subjects.name', `%${query}%`)
+  }
+
+  // Filtro por carrera del asesor
+  if (selectedCareer && selectedCareer !== 'all') {
+    supabaseQuery = supabaseQuery.eq('career_id', selectedCareer)
   }
 
   const { data: advisors, error } = await supabaseQuery
@@ -37,7 +53,7 @@ export default async function Home({
   return (
     <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-5xl font-serif">
+        <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-5xl font-serif italic">
           Encuentra tu asesoría académica
         </h1>
         <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
@@ -45,27 +61,45 @@ export default async function Home({
         </p>
       </div>
 
-      {/* Buscador Funcional */}
+      {/* Buscador y Filtros */}
       <div className="mt-12 flex justify-center">
-        <form action="/" className="w-full max-w-lg">
-          <div className="relative group">
-            <input
-              type="text"
-              name="q"
-              defaultValue={query}
-              placeholder="¿Qué materia necesitas aprender? (ej. Cálculo)"
-              className="w-full rounded-2xl border border-zinc-200 bg-white px-6 py-4 pr-12 text-zinc-900 shadow-sm transition-all focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
-            />
-            <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-blue-500 transition-colors">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+        <form action="/" className="w-full max-w-2xl space-y-4">
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex-1 relative group">
+              <input
+                type="text"
+                name="q"
+                defaultValue={query}
+                placeholder="¿Qué materia necesitas? (ej. Cálculo)"
+                className="w-full rounded-2xl border border-zinc-200 bg-white px-6 py-4 pr-12 text-zinc-900 shadow-sm transition-all focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
+              />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+
+            <select
+              name="career"
+              defaultValue={selectedCareer || 'all'}
+              className="rounded-2xl border border-zinc-200 bg-white px-6 py-4 text-zinc-900 shadow-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white min-w-[200px]"
+            >
+              <option value="all">Todas las carreras</option>
+              {careers?.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+
+            <button type="submit" className="rounded-2xl bg-zinc-900 px-8 py-4 font-bold text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 transition-colors">
+              Filtrar
             </button>
           </div>
-          {query && (
-            <div className="mt-3 text-center">
+
+          {(query || (selectedCareer && selectedCareer !== 'all')) && (
+            <div className="text-center">
               <Link href="/" className="text-xs text-zinc-500 hover:text-blue-500 underline underline-offset-4">
-                Limpiar búsqueda
+                Limpiar todos los filtros
               </Link>
             </div>
           )}
@@ -79,9 +113,36 @@ export default async function Home({
             className="group relative flex flex-col rounded-3xl border border-zinc-200 bg-white p-8 transition-all hover:border-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/5 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-blue-500/20"
           >
             <div className="flex-1">
-              <h3 className="text-xl font-bold text-zinc-900 dark:text-white">
-                {advisor.full_name}
-              </h3>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="relative h-14 w-14 overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-800 border-2 border-white dark:border-zinc-700 shadow-sm">
+                  {advisor.avatar_url ? (
+                    <img
+                      src={advisor.avatar_url}
+                      alt={advisor.full_name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-zinc-400">
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-zinc-900 dark:text-white leading-tight">
+                    {advisor.full_name}
+                  </h3>
+                  {/* @ts-ignore */}
+                  {advisor.careers?.name && (
+                    <p className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 mt-0.5 tracking-wider">
+                      {/* @ts-ignore */}
+                      {advisor.careers.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+
               <div className="mt-4 flex flex-wrap gap-2">
                 {/* @ts-ignore */}
                 {advisor.advisor_subjects?.map((as: any, idx) => {
@@ -89,7 +150,7 @@ export default async function Home({
                   return (
                     <span
                       key={idx}
-                      className="inline-flex items-center rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                      className="inline-flex items-center rounded-lg bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 uppercase"
                     >
                       {subject?.name}
                     </span>

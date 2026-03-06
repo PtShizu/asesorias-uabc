@@ -55,6 +55,8 @@ export async function sendStatusChangeEmail({
   status,
   date,
   startTime,
+  endTime,
+  location,
 }: {
   guestEmail: string;
   advisorName: string;
@@ -62,6 +64,8 @@ export async function sendStatusChangeEmail({
   status: 'confirmed' | 'cancelled';
   date: string;
   startTime: string;
+  endTime: string;
+  location?: string;
 }) {
   const isConfirmed = status === 'confirmed';
   const statusLabel = isConfirmed ? 'Confirmada' : 'Cancelada';
@@ -78,7 +82,8 @@ export async function sendStatusChangeEmail({
           <p><strong>Asesor:</strong> ${advisorName}</p>
           <p><strong>Materia:</strong> ${subjectName}</p>
           <p><strong>Fecha:</strong> ${date}</p>
-          <p><strong>Hora:</strong> ${startTime}</p>
+          <p><strong>Horario:</strong> ${startTime} - ${endTime}</p>
+          ${isConfirmed && location ? `<p><strong>Lugar:</strong> ${location}</p>` : ''}
           <p>${isConfirmed 
             ? '¡Nos vemos pronto en la sesión!' 
             : 'Lamentablemente el asesor no podrá atenderte en este horario.'}</p>

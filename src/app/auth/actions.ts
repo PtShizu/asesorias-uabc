@@ -68,6 +68,9 @@ export async function updateProfile(formData: FormData) {
 
   const fullName = formData.get('full_name') as string
   const bio = formData.get('bio') as string
+  const defaultLocation = formData.get('default_location') as string
+  const careerId = formData.get('career_id') as string
+  const avatarUrl = formData.get('avatar_url') as string
   const selectedSubjects = formData.getAll('subjects') as string[]
 
   // 1. Actualizar perfil básico
@@ -76,6 +79,9 @@ export async function updateProfile(formData: FormData) {
     .update({ 
       full_name: fullName, 
       bio: bio,
+      default_location: defaultLocation,
+      career_id: careerId,
+      avatar_url: avatarUrl,
       updated_at: new Date().toISOString()
     })
     .eq('id', user.id)
@@ -128,6 +134,29 @@ export async function updateProfile(formData: FormData) {
   redirect('/profile?message=Perfil actualizado correctamente')
 }
 
+export async function updateAvatar(url: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ 
+      avatar_url: url,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', user.id)
+
+  if (error) {
+    console.error('Error updating avatar:', error.message)
+    return
+  }
+
+  revalidatePath('/profile')
+  revalidatePath('/')
+}
+
 export async function createAppointment(data: {
   advisorId: string,
   subjectId: string,
@@ -176,11 +205,15 @@ export async function createAppointment(data: {
   revalidatePath(`/advisor/${data.advisorId}`)
 }
 
-export async function updateAppointmentStatus(appointmentId: string, status: 'confirmed' | 'cancelled') {
+export async function updateAppointmentStatus(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) return
+
+  const appointmentId = formData.get('appointmentId') as string
+  const status = formData.get('status') as ('confirmed' | 'cancelled')
+  const locationDetails = formData.get('location') as string
 
   // 1. Obtener detalles antes de actualizar para el correo
   const { data: app } = await supabase
@@ -192,7 +225,10 @@ export async function updateAppointmentStatus(appointmentId: string, status: 'co
   // 2. Actualizar
   const { error } = await supabase
     .from('appointments')
-    .update({ status })
+    .update({ 
+      status,
+      location_details: status === 'confirmed' ? locationDetails : null
+    })
     .eq('id', appointmentId)
     .eq('advisor_id', user.id)
 
@@ -214,11 +250,14 @@ export async function updateAppointmentStatus(appointmentId: string, status: 'co
       subjectName,
       status,
       date: formatDate(app.start_at),
-      startTime: formatTime(app.start_at)
+      startTime: formatTime(app.start_at),
+      endTime: formatTime(app.end_at),
+      location: status === 'confirmed' ? locationDetails : undefined
     })
   }
 
   revalidatePath('/dashboard')
+  redirect('/dashboard?message=' + encodeURIComponent(status === 'confirmed' ? 'Asesoría confirmada' : 'Asesoría rechazada'))
 }
 
 export async function deleteAppointment(appointmentId: string) {
@@ -231,7 +270,7 @@ export async function deleteAppointment(appointmentId: string) {
     .from('appointments')
     .delete()
     .eq('id', appointmentId)
-    .eq('advisor_id', user.id) // Seguridad: solo borrar mis propias citas
+    .eq('advisor_id', user.id)
 
   if (error) {
     console.error('Error deleting appointment:', error.message)
@@ -239,6 +278,7 @@ export async function deleteAppointment(appointmentId: string) {
   }
 
   revalidatePath('/dashboard')
+  redirect('/dashboard?message=' + encodeURIComponent('Asesoría finalizada'))
 }
 
 export async function logout() {

@@ -1,0 +1,14 @@
+import { MetadataRoute } from 'next'
+
+export default function robots(): MetadataRoute.Robots {
+  const baseUrl = 'https://cimasesorias.vercel.app' // Cambia esto por tu dominio real
+
+  return {
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      disallow: ['/dashboard', '/profile'], // No indexar paneles privados
+    },
+    sitemap: `${baseUrl}/sitemap.xml`,
+  }
+}

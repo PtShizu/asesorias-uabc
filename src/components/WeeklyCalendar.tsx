@@ -4,6 +4,7 @@ import { useState, Fragment, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { createAppointment } from '@/app/auth/actions'
 import { formatTime, DEFAULT_TIMEZONE, getHourInTimezone, getDayOfWeekInTimezone } from '@/lib/date-utils'
+import { toast } from 'sonner'
 
 const DAYS = [
   { label: 'Lunes', value: 1 },
@@ -102,7 +103,7 @@ export default function WeeklyCalendar({
         
         const uniqueSubjects = [...new Set(allOccupiedSubjects.map(s => s!.subjectId))]
         if (uniqueSubjects.length > 1) {
-          alert("Bloque con materias diferentes. Elige horas con la misma materia.")
+          toast.error("Bloque con materias diferentes. Elige horas con la misma materia.")
           return
         }
         
@@ -159,10 +160,11 @@ export default function WeeklyCalendar({
       setSelectedHours([])
       setSelectedDay(null)
       setGuestEmail('')
-      // No necesitamos reload porque revalidatePath se encarga
+      toast.success('Solicitud enviada con éxito. Revisa tu correo.')
     } catch (err) {
       console.error(err)
       setStatus('error')
+      toast.error('Hubo un error al enviar la solicitud. Inténtalo de nuevo.')
     }
   }
 
