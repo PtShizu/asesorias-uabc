@@ -1,8 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { updateAppointmentStatus, deleteAppointment } from '@/app/auth/actions'
-
-const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+import { formatTime, getDayName, getDateNumber } from '@/lib/date-utils'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -90,11 +89,11 @@ export default async function DashboardPage() {
                       <p className="text-sm text-zinc-500">{app.guest_email}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-amber-600 dark:text-amber-400">
-                        {DAYS[new Date(app.start_at).getDay()]}
+                      <p className="text-sm font-bold text-amber-600 dark:text-amber-400 capitalize">
+                        {getDayName(app.start_at)}
                       </p>
                       <p className="text-xs text-zinc-500">
-                        {new Date(app.start_at).getHours()}:00 - {new Date(app.end_at).getHours()}:00
+                        {formatTime(app.start_at)} - {formatTime(app.end_at)}
                       </p>
                     </div>
                   </div>
@@ -131,13 +130,13 @@ export default async function DashboardPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-4">
                       <div className="h-12 w-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex flex-col items-center justify-center text-blue-600 font-bold shrink-0">
-                        <span className="text-[10px] uppercase leading-none">{DAYS[new Date(session.start_at).getDay()].substring(0, 3)}</span>
-                        <span className="text-lg leading-none mt-1">{new Date(session.start_at).getDate()}</span>
+                        <span className="text-[10px] uppercase leading-none">{getDayName(session.start_at).substring(0, 3)}</span>
+                        <span className="text-lg leading-none mt-1">{getDateNumber(session.start_at)}</span>
                       </div>
                       <div>
                         <h3 className="font-bold text-zinc-900 dark:text-white">{session.subjectName}</h3>
                         <p className="text-xs font-medium text-zinc-500 mt-0.5">
-                          {new Date(session.start_at).getHours()}:00 — {new Date(session.end_at).getHours()}:00
+                          {formatTime(session.start_at)} — {formatTime(session.end_at)}
                         </p>
                       </div>
                     </div>

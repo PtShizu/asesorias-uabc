@@ -3,6 +3,7 @@
 import { useState, Fragment, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { createAppointment } from '@/app/auth/actions'
+import { formatTime, DEFAULT_TIMEZONE, getHourInTimezone, getDayOfWeekInTimezone } from '@/lib/date-utils'
 
 const DAYS = [
   { label: 'Lunes', value: 1 },
@@ -49,11 +50,11 @@ export default function WeeklyCalendar({
   const occupiedSlots = useMemo(() => {
     const map = new Map<string, { subjectId: string, name: string, status: string }>()
     initialAppointments.filter(a => a.status !== 'cancelled').forEach(app => {
-      const start = new Date(app.start_at)
-      const end = new Date(app.end_at)
-      const day = start.getDay()
+      const hour = getHourInTimezone(app.start_at)
+      const endHour = getHourInTimezone(app.end_at)
+      const day = getDayOfWeekInTimezone(app.start_at)
       
-      for (let h = start.getHours(); h < end.getHours(); h++) {
+      for (let h = hour; h < endHour; h++) {
         map.set(`${day}-${h}`, { 
           subjectId: app.subject_id, 
           name: app.subjects.name,

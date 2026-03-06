@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { sendAppointmentRequestEmail, sendStatusChangeEmail } from '@/lib/mail'
+import { formatDate, formatTime } from '@/lib/date-utils'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
@@ -152,16 +153,13 @@ export async function createAppointment(data: {
   if (insertError) throw new Error(insertError.message)
 
   if (appointment) {
-    const start = new Date(data.startAt)
-    const end = new Date(data.endAt)
-    
     // @ts-ignore
     const advisorEmail = appointment.profiles?.email
     // @ts-ignore
     const subjectName = appointment.subjects?.name
-    const dateStr = start.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Tijuana' })
-    const startTimeStr = start.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Tijuana' })
-    const endTimeStr = end.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Tijuana' })
+    const dateStr = formatDate(data.startAt)
+    const startTimeStr = formatTime(data.startAt)
+    const endTimeStr = formatTime(data.endAt)
 
     if (advisorEmail) {
       await sendAppointmentRequestEmail({
@@ -205,7 +203,6 @@ export async function updateAppointmentStatus(appointmentId: string, status: 'co
 
   // 3. Enviar correo al alumno
   if (app) {
-    const start = new Date(app.start_at)
     // @ts-ignore
     const advisorName = app.profiles?.full_name || 'Asesor'
     // @ts-ignore
@@ -216,8 +213,8 @@ export async function updateAppointmentStatus(appointmentId: string, status: 'co
       advisorName,
       subjectName,
       status,
-      date: start.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Tijuana' }),
-      startTime: start.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Tijuana' })
+      date: formatDate(app.start_at),
+      startTime: formatTime(app.start_at)
     })
   }
 
