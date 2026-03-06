@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { updateAppointmentStatus } from '@/app/auth/actions'
+import { updateAppointmentStatus, deleteAppointment } from '@/app/auth/actions'
 
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -31,7 +31,29 @@ export default async function DashboardPage() {
   }
 
   const pending = appointments?.filter(a => a.status === 'pending') || []
-  const confirmed = appointments?.filter(a => a.status === 'confirmed') || []
+  const confirmedRaw = appointments?.filter(a => a.status === 'confirmed') || []
+
+  // Agrupar confirmadas por horario y materia
+  const groupedConfirmed = confirmedRaw.reduce((acc, app) => {
+    const subject = Array.isArray(app.subjects) ? app.subjects[0] : app.subjects;
+    const key = `${app.start_at}-${subject?.name}`;
+    
+    if (!acc[key]) {
+      acc[key] = {
+        subjectName: subject?.name || 'Materia',
+        start_at: app.start_at,
+        end_at: app.end_at,
+        guests: [app.guest_email],
+        ids: [app.id]
+      }
+    } else {
+      acc[key].guests.push(app.guest_email);
+      acc[key].ids.push(app.id);
+    }
+    return acc;
+  }, {} as Record<string, any>);
+
+  const confirmed = Object.values(groupedConfirmed);
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-12">
@@ -97,30 +119,54 @@ export default async function DashboardPage() {
         {/* Agenda Confirmada */}
         <section>
           <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-6">Próximas Asesorías</h2>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {confirmed.length === 0 && (
               <p className="text-sm text-zinc-500 italic py-10 text-center border-2 border-dashed border-zinc-100 dark:border-zinc-800 rounded-2xl">
                 Aún no has confirmado ninguna asesoría.
               </p>
             )}
-            {confirmed.map(app => {
-              const subject = Array.isArray(app.subjects) ? app.subjects[0] : app.subjects;
+            {confirmed.map((session: any, idx) => {
               return (
-                <div key={app.id} className="flex items-center gap-4 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800">
-                  <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold text-xs">
-                    {new Date(app.start_at).getDate()}
+                <div key={idx} className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 group transition-all hover:border-blue-500/30">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex flex-col items-center justify-center text-blue-600 font-bold shrink-0">
+                        <span className="text-[10px] uppercase leading-none">{DAYS[new Date(session.start_at).getDay()].substring(0, 3)}</span>
+                        <span className="text-lg leading-none mt-1">{new Date(session.start_at).getDate()}</span>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-zinc-900 dark:text-white">{session.subjectName}</h3>
+                        <p className="text-xs font-medium text-zinc-500 mt-0.5">
+                          {new Date(session.start_at).getHours()}:00 — {new Date(session.end_at).getHours()}:00
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                       <form action={async () => { 
+                         'use server'; 
+                         for (const id of session.ids) {
+                           await deleteAppointment(id)
+                         }
+                       }}>
+                        <button title="Finalizar sesión (borrar todos)" className="p-2 text-zinc-400 hover:text-red-500 transition-colors">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </form>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-zinc-900 dark:text-white">{subject?.name || 'Materia'}</p>
-                    <p className="text-xs text-zinc-500">{app.guest_email}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-bold text-zinc-600 dark:text-zinc-400">
-                      {DAYS[new Date(app.start_at).getDay()]}
-                    </p>
-                    <p className="text-[10px] text-zinc-500 uppercase">
-                      {new Date(app.start_at).getHours()}:00
-                    </p>
+
+                  <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                    <p className="text-[10px] uppercase font-bold text-zinc-400 mb-2">Alumnos inscritos ({session.guests.length})</p>
+                    <div className="flex flex-wrap gap-2">
+                      {session.guests.map((email: string, gIdx: number) => (
+                        <span key={gIdx} className="text-xs bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 rounded-lg text-zinc-600 dark:text-zinc-400 font-medium shadow-sm">
+                          {email}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )

@@ -224,6 +224,26 @@ export async function updateAppointmentStatus(appointmentId: string, status: 'co
   revalidatePath('/dashboard')
 }
 
+export async function deleteAppointment(appointmentId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return
+
+  const { error } = await supabase
+    .from('appointments')
+    .delete()
+    .eq('id', appointmentId)
+    .eq('advisor_id', user.id) // Seguridad: solo borrar mis propias citas
+
+  if (error) {
+    console.error('Error deleting appointment:', error.message)
+    return
+  }
+
+  revalidatePath('/dashboard')
+}
+
 export async function logout() {
   const supabase = await createClient()
   await supabase.auth.signOut()
