@@ -15,11 +15,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  applicationName: "Cima Asesorías",
   title: "Cima Asesorías | Apoyo Académico entre Cimarrones UABC",
-  description: "La plataforma oficial para encontrar y solicitar asesorías académicas en la UABC. Cima Asesorías conecta a cimarrones para potenciar su éxito académico.",
+  description: "Una plataforma no oficial para encontrar y solicitar asesorías académicas en la UABC. Cima Asesorías conecta a cimarrones para potenciar su éxito académico.",
   keywords: ["Cima Asesorías", "UABC", "Cimarrones", "Asesorías Académicas", "Tijuana", "Cima Asesorias"],
   verification: {
     google: "mAp2-MgfaTvwQ0cEU6fq0qk6ylWDON8XTxvrMZ6BG7A",
+  },
+  openGraph: {
+    title: "Cima Asesorías | Apoyo Académico entre Cimarrones UABC",
+    description: "Una plataforma no oficial para encontrar y solicitar asesorías académicas en la UABC. Cima Asesorías conecta a cimarrones para potenciar su éxito académico.",
+    siteName: "Cima Asesorías",
+    locale: "es_MX",
+    type: "website",
   },
 };
 
