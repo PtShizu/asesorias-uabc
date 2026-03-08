@@ -41,12 +41,13 @@ export default async function Navbar() {
                 </form>
               </div>
             ) : (
-              <Link 
-                href="/login" 
+              <Link
+                href="/login"
                 className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200 transition-colors"
               >
-                Iniciar Sesión
+                Acceso a Asesores
               </Link>
+
             )}
           </div>
         </div>

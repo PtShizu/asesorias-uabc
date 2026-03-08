@@ -62,10 +62,10 @@ export default function ScheduleEditor({ initialSlots }: { initialSlots: Slot[] 
               name="availability_day"
               value={slot.day_of_week}
               onChange={(e) => updateSlot(index, 'day_of_week', parseInt(e.target.value))}
-              className="w-full bg-transparent text-sm font-medium focus:outline-none"
+              className="w-full bg-transparent text-sm font-bold focus:outline-none dark:text-white"
             >
               {DAYS.map(day => (
-                <option key={day.value} value={day.value}>{day.label}</option>
+                <option key={day.value} value={day.value} className="dark:bg-zinc-900">{day.label}</option>
               ))}
             </select>
           </div>
@@ -77,7 +77,7 @@ export default function ScheduleEditor({ initialSlots }: { initialSlots: Slot[] 
               name="availability_start"
               value={slot.start_time}
               onChange={(e) => updateSlot(index, 'start_time', e.target.value)}
-              className="bg-transparent text-sm font-medium focus:outline-none"
+              className="bg-transparent text-sm font-bold focus:outline-none dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
               required
             />
           </div>
@@ -89,7 +89,7 @@ export default function ScheduleEditor({ initialSlots }: { initialSlots: Slot[] 
               name="availability_end"
               value={slot.end_time}
               onChange={(e) => updateSlot(index, 'end_time', e.target.value)}
-              className="bg-transparent text-sm font-medium focus:outline-none"
+              className="bg-transparent text-sm font-bold focus:outline-none dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
               required
             />
           </div>

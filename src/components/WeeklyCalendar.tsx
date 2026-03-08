@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { createAppointment } from '@/app/auth/actions'
 import { formatTime, DEFAULT_TIMEZONE, getHourInTimezone, getDayOfWeekInTimezone } from '@/lib/date-utils'
 import { toast } from 'sonner'
+import { validateEmailDomain } from '@/app/actions/validation'
 
 const DAYS = [
   { label: 'Lunes', value: 1 },
@@ -43,6 +44,7 @@ export default function WeeklyCalendar({
   const [selectedHours, setSelectedHours] = useState<number[]>([])
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [guestEmail, setGuestEmail] = useState('')
+  const [emailError, setEmailError] = useState<string | null>(null)
   const [selectedSubject, setSelectedSubject] = useState(subjects[0]?.id || '')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
 
@@ -127,6 +129,15 @@ export default function WeeklyCalendar({
     if (!selectedDay || selectedHours.length === 0 || !guestEmail || !selectedSubject) return
 
     setStatus('loading')
+    setEmailError(null)
+
+    // Validar dominio del correo
+    const validation = await validateEmailDomain(guestEmail)
+    if (!validation.valid) {
+      setEmailError(validation.message || 'Error en el correo')
+      setStatus('idle')
+      return
+    }
 
     // 1. Obtener la fecha base (hoy a las 00:00:00)
     const targetDate = new Date()
@@ -197,19 +208,20 @@ export default function WeeklyCalendar({
                   key={`${day.value}-${hour}`}
                   onClick={() => handleSlotClick(day.value, hour)}
                   className={`
-                    h-16 border-l border-b border-zinc-200 dark:border-zinc-800 transition-all relative flex flex-col items-center justify-center text-center p-1
+                    h-20 border-l border-b border-zinc-200 dark:border-zinc-800 transition-all relative flex flex-col items-center justify-center text-center p-1
                     ${!available ? 'bg-zinc-100/30 dark:bg-zinc-800/5 cursor-not-allowed' : 'cursor-pointer'}
-                    ${available && !selected && !occupied ? 'hover:bg-blue-50 dark:hover:bg-blue-900/10' : ''}
+                    ${available && !selected && !occupied ? 'hover:bg-blue-200 dark:hover:bg-blue-900/20' : ''}
                     ${selected ? 'bg-blue-600 dark:bg-blue-500 z-10' : ''}
-                    ${occupied && !selected ? (occupied.status === 'confirmed' ? 'bg-zinc-100 dark:bg-zinc-800 border-l-4 border-l-blue-500' : 'bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-l-amber-400') : ''}
+                    ${available && !selected && !occupied ? 'bg-zinc-100 dark:bg-zinc-800/50' : ''}
+                    ${occupied && !selected ? (occupied.status === 'confirmed' ? 'bg-blue-100 dark:bg-blue-900/25 border-l-4 border-l-blue-500 dark:border-l-blue-500' : 'bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-l-amber-400') : ''}
                   `}
                 >
                   {!selected && occupied && (
                     <>
-                      <span className={`text-[9px] font-bold uppercase leading-tight ${occupied.status === 'confirmed' ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-500'}`}>
+                      <span className={`text-[9px] font-bold uppercase leading-tight ${occupied.status === 'confirmed' ? 'text-blue-600 dark:text-blue-300' : 'text-amber-600 dark:text-amber-500'}`}>
                         {occupied.name}
                       </span>
-                      <span className="text-[7px] uppercase font-bold text-zinc-400">
+                      <span className="text-[7px] uppercase font-bold text-zinc-700 dark:text-zinc-300">
                         {occupied.status === 'confirmed' ? 'Confirmado' : 'Pendiente'}
                       </span>
                     </>
@@ -218,7 +230,7 @@ export default function WeeklyCalendar({
                     <span className="text-[9px] font-bold text-white uppercase">Seleccionado</span>
                   )}
                   {available && !selected && !occupied && (
-                     <span className="text-[9px] font-bold text-zinc-300 dark:text-zinc-600 uppercase">Libre</span>
+                     <span className="text-[9px] font-bold text-zinc-700 dark:text-zinc-300 uppercase">Libre</span>
                   )}
                 </div>
               )
@@ -243,7 +255,7 @@ export default function WeeklyCalendar({
                     value={selectedSubject}
                     onChange={(e) => setSelectedSubject(e.target.value)}
                     disabled={!!lockedSubject}
-                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none dark:border-zinc-700 dark:bg-zinc-800 disabled:bg-zinc-100"
+                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white disabled:bg-zinc-100 disabled:text-zinc-500 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-400"
                   >
                     {subjects.map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
@@ -255,11 +267,15 @@ export default function WeeklyCalendar({
                   <input 
                     type="email" 
                     value={guestEmail}
-                    onChange={(e) => setGuestEmail(e.target.value)}
+                    onChange={(e) => {
+                      setGuestEmail(e.target.value)
+                      if (emailError) setEmailError(null)
+                    }}
                     placeholder="estudiante@uabc.edu.mx"
-                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none dark:border-zinc-700 dark:bg-zinc-800"
+                    className={`w-full rounded-lg border px-3 py-2 text-sm outline-none dark:bg-zinc-800 ${emailError ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}
                     required
                   />
+                  {emailError && <p className="mt-1 text-[10px] text-red-500 font-medium">{emailError}</p>}
                 </div>
               </div>
             </div>

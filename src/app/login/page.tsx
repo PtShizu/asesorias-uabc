@@ -14,13 +14,20 @@ function LoginForm() {
     <div className="w-full max-w-md space-y-8 rounded-2xl border border-zinc-200 bg-white p-8 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
       <div className="text-center">
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
-          {isLogin ? 'Bienvenido de nuevo' : 'Crea tu cuenta'}
+          {isLogin ? 'Acceso para Asesores' : 'Registro de Asesores'}
         </h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           {isLogin 
-            ? 'Ingresa tus credenciales para acceder' 
-            : 'Regístrate como asesor para empezar'}
+            ? 'Ingresa tus credenciales para gestionar tus asesorías' 
+            : 'Crea tu perfil para empezar a ofrecer asesorías'}
         </p>
+        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+          <p className="text-xs text-blue-700 dark:text-blue-300 font-medium leading-relaxed">
+            ¿Eres estudiante? <br/>
+            No necesitas una cuenta para solicitar asesoría. <br/>
+            Solo selecciona a un asesor en la página principal.
+          </p>
+        </div>
       </div>
 
       <form action={isLogin ? login : signup} className="mt-8 space-y-6">

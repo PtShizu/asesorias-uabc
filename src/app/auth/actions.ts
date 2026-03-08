@@ -205,6 +205,30 @@ export async function createAppointment(data: {
   revalidatePath(`/advisor/${data.advisorId}`)
 }
 
+export async function createManualAppointment(data: {
+  advisorId: string,
+  subjectId: string,
+  startAt: string,
+  endAt: string
+}) {
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('appointments')
+    .insert([{
+      advisor_id: data.advisorId,
+      subject_id: data.subjectId,
+      guest_email: 'Confirmado por asesor', // Identificador para citas manuales
+      start_at: data.startAt,
+      end_at: data.endAt,
+      status: 'confirmed' // Directamente confirmado
+    }])
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/dashboard')
+}
+
 export async function updateAppointmentStatus(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
